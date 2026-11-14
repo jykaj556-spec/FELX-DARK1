@@ -1,27 +1,228 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090909">
 <title>FELX-DARK</title>
-<link rel="stylesheet" href="style.css">
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;background:#080808;color:#fff;
+font-family:Arial,sans-serif;
+min-height:100vh;padding:20px;
+}
+header{text-align:center;padding:25px}
+.logo{color:#ff2020;font-size:36px;font-weight:900}
+.subtitle{color:#888;letter-spacing:3px}
+.container{max-width:480px;margin:auto}
+.card{
+background:#151515;border:1px solid #333;
+padding:22px;border-radius:15px;margin:15px 0;
+box-shadow:0 5px 25px #000;
+}
+h2{color:#ff2929;text-align:center}
+input{
+width:100%;padding:14px;margin:9px 0;
+background:#222;color:white;
+border:1px solid #444;border-radius:8px;
+}
+button{
+width:100%;padding:14px;margin:8px 0;
+background:#d90000;color:white;
+border:0;border-radius:8px;
+font-weight:bold;font-size:16px;
+}
+button:hover{background:#ff2424}
+.switch{background:#292929}
+.hidden{display:none}
+.notice{text-align:center;color:#999;font-size:13px}
+.status{color:#ff3434;text-align:center}
+.stat{
+background:#202020;padding:18px;
+border-radius:10px;text-align:center;
+margin:10px 0
+}
+</style>
 </head>
 <body>
+
 <header>
-<h1>🐺 FELX-DARK</h1>
-<p>لوحة التحكم الخاصة بك</p>
+<div class="logo">FELX-DARK</div>
+<div class="subtitle">ADVANCED CONTROL PANEL</div>
 </header>
 
-<main>
-<div class="card">
-<h2>تسجيل الدخول</h2>
-<input id="username" placeholder="اسم المستخدم">
-<input id="password" type="password" placeholder="كلمة المرور">
-<button onclick="login()">دخول</button>
-<p id="message"></p>
-</div>
-</main>
+<div class="container">
 
-<script src="app.js"></script>
+<section id="auth">
+
+<div class="card" id="login">
+<h2>تسجيل الدخول</h2>
+<input id="loginUser" placeholder="اسم المستخدم">
+<input id="loginPass" type="password" placeholder="كلمة المرور">
+<button onclick="login()">دخول</button>
+<button class="switch" onclick="showRegister()">إنشاء حساب جديد</button>
+<p id="loginMsg" class="status"></p>
+</div>
+
+<div class="card hidden" id="register">
+<h2>إنشاء حساب</h2>
+<input id="regUser" placeholder="اسم المستخدم">
+<input id="regPass" type="password" placeholder="كلمة المرور">
+<input id="regCode" placeholder="كود التفعيل">
+<button onclick="register()">إنشاء الحساب</button>
+<button class="switch" onclick="showLogin()">رجوع للدخول</button>
+<p id="registerMsg" class="status"></p>
+</div>
+
+</section>
+
+<section id="home" class="hidden">
+
+<div class="card">
+<h2>مرحباً بك في FELX-DARK</h2>
+<p class="notice">تم تسجيل الدخول بنجاح</p>
+<div class="stat">
+اسم الحساب:
+<strong id="currentUser"></strong>
+</div>
+<div class="stat">
+حالة العضوية:
+<strong id="memberStatus">نشط</strong>
+</div>
+<button onclick="logout()">تسجيل الخروج</button>
+</div>
+
+<div class="card">
+<h2>لوحة الأدوات</h2>
+<p class="notice">
+إدارة سجل المضاعفات والإحصائيات
+</p>
+<input id="multiplier" type="number" min="1"
+step="0.01" placeholder="أدخل نتيجة الجولة">
+<button onclick="saveRound()">تسجيل النتيجة</button>
+<div id="rounds"></div>
+</div>
+
+</section>
+</div>
+
+<script>
+const USERS_KEY="felx_users";
+const CODES_KEY="felx_codes";
+
+function read(key){
+try{return JSON.parse(localStorage.getItem(key)||"[]")}
+catch{return []}
+}
+
+function showRegister(){
+login.classList.add("hidden");
+register.classList.remove("hidden");
+}
+
+function showLogin(){
+register.classList.add("hidden");
+login.classList.remove("hidden");
+}
+
+function register(){
+const username=regUser.value.trim();
+const password=regPass.value;
+const code=regCode.value.trim();
+const users=read(USERS_KEY);
+const codes=read(CODES_KEY);
+
+if(username.length<3||password.length<6){
+registerMsg.textContent="اسم المستخدم 3 أحرف وكلمة المرور 6 أحرف على الأقل";
+return;
+}
+
+if(users.some(u=>u.username===username)){
+registerMsg.textContent="اسم المستخدم موجود";
+return;
+}
+
+const activation=codes.find(c=>c.code===code&&!c.used);
+
+if(!activation){
+registerMsg.textContent="كود التفعيل غير صالح";
+return;
+}
+
+activation.used=true;
+localStorage.setItem(CODES_KEY,JSON.stringify(codes));
+
+users.push({username,password,active:true});
+localStorage.setItem(USERS_KEY,JSON.stringify(users));
+
+registerMsg.textContent="تم إنشاء الحساب. سجل دخولك الآن";
+showLogin();
+}
+
+function login(){
+const username=loginUser.value.trim();
+const password=loginPass.value;
+const users=read(USERS_KEY);
+const user=users.find(u=>u.username===username&&u.password===password);
+
+if(!user||!user.active){
+loginMsg.textContent="بيانات الدخول غير صحيحة";
+return;
+}
+
+sessionStorage.setItem("felx_session",username);
+openHome(username);
+}
+
+function openHome(username){
+auth.classList.add("hidden");
+home.classList.remove("hidden");
+currentUser.textContent=username;
+renderRounds();
+}
+
+function logout(){
+sessionStorage.removeItem("felx_session");
+home.classList.add("hidden");
+auth.classList.remove("hidden");
+showLogin();
+}
+
+function saveRound(){
+const value=Number(multiplier.value);
+if(!Number.isFinite(value)||value<1){
+alert("أدخل نتيجة صحيحة");
+return;
+}
+
+const key="felx_rounds_"+currentUser.textContent;
+const rounds=read(key);
+rounds.unshift({value,date:new Date().toLocaleString("ar-EG")});
+localStorage.setItem(key,JSON.stringify(rounds.slice(0,100)));
+multiplier.value="";
+renderRounds();
+}
+
+function renderRounds(){
+const key="felx_rounds_"+currentUser.textContent;
+const rounds=read(key);
+
+document.getElementById("rounds").innerHTML=
+rounds.map(r=>`
+<div class="stat">
+<strong>${Number(r.value).toFixed(2)}x</strong>
+<br><small>${r.date}</small>
+</div>`).join("")||'<p class="notice">لا توجد نتائج مسجلة</p>';
+}
+
+const saved=sessionStorage.getItem("felx_session");
+if(saved){
+const user=read(USERS_KEY).find(u=>u.username===saved&&u.active);
+if(user)openHome(saved);
+else sessionStorage.removeItem("felx_session");
+}
+</script>
 </body>
 </html>
